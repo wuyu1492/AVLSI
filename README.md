@@ -7,7 +7,7 @@ numpy
 keras
 kerassurgeon
 
-train.csv in release
+train.csv can be found in release
 
 train:
 ```
