@@ -82,7 +82,7 @@ def train_cnn_model(label, feature, mode):
             validation_data=(x_val, label_val))
 
     if mode == 'prune' :
-        layer_i = 10
+        layer_i = 8
         print("Prining layer = {} ".format(layer_i))
         model = delete_channels(model, model.layers[layer_i], [0, 4, 16, 32])
         model.compile(loss='categorical_crossentropy',
