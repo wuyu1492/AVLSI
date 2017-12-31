@@ -31,7 +31,8 @@ def show(img, label):
     plt.show()
     plt.savefig('show_pic.png')
 
-def train_cnn_model(label, feature):
+def train_cnn_model(label, feature, mode):
+    print("Mode == ", mode)
     feature = np.reshape(feature, (-1, 48, 48, 1))
     split = 0.8
     split *= len(label)
@@ -43,31 +44,23 @@ def train_cnn_model(label, feature):
 
     # cnn model
     model = Sequential()
-    model.add(Conv2D(32,(5,5),padding='same',input_shape=(48,48,1)))
-    model.add(BatchNormalization())
+    model.add(Conv2D(16,(5,5),padding='same',input_shape=(48,48,1)))
     model.add(Activation("relu"))
     model.add(MaxPooling2D(pool_size=5,strides=2))
     model.add(Dropout(0.4))
 
-    model.add(Conv2D(64,(3,3),padding='same'))
-    model.add(BatchNormalization())
+    model.add(Conv2D(32,(3,3),padding='same'))
     model.add(Activation("relu"))
     model.add(MaxPooling2D(pool_size=3,strides=2))
     model.add(Dropout(0.4))
     
-    model.add(Conv2D(128,(3,3),padding='same'))
-    model.add(BatchNormalization())
+    model.add(Conv2D(64,(3,3),padding='same'))
     model.add(Activation("relu"))
     model.add(MaxPooling2D(pool_size=3,strides=2))
     model.add(Dropout(0.4))
 
     model.add(Flatten())
     model.add(Dense(1024))
-    model.add(BatchNormalization())
-    model.add(Activation("relu"))
-    model.add(Dropout(0.4))
-    model.add(Dense(1024))
-    model.add(BatchNormalization())
     model.add(Activation("relu"))
     model.add(Dropout(0.4))
     model.add(Dense(7))
@@ -77,23 +70,33 @@ def train_cnn_model(label, feature):
             optimizer='adam',
             metrics=['accuracy'])
     model.summary()
-
-    # prune the model
-    model = delete_channels(model, model.layers[9], [0, 4 , 8, 16, 32, 64])
-    model.compile(loss='categorical_crossentropy',
-            optimizer='adam',
-            metrics=['accuracy'])
-    model.summary()
     
     # train model
-    batch = 128
-    epo = 30
-
+    batch = 512
+    epo = 4
+    
     history = model.fit(x_train,
             label_train, 
             batch_size=batch,
             epochs=epo,
             validation_data=(x_val, label_val))
+
+    if mode == 'prune' :
+        layer_i = 10
+        print("Prining layer = {} ".format(layer_i))
+        model = delete_channels(model, model.layers[layer_i], [0, 4, 16, 32])
+        model.compile(loss='categorical_crossentropy',
+                optimizer='adam',
+                metrics=['accuracy'])
+        model.summary()
+    
+    epo = 1
+    history = model.fit(x_train,
+            label_train, 
+            batch_size=batch,
+            epochs=epo,
+            validation_data=(x_val, label_val))
+
     model.save("model_cnn.h5")
     np.save("history_acc.npy", history.history['acc'])
     np.save("history_val_acc.npy", history.history['val_acc'])
@@ -104,7 +107,7 @@ def train_cnn_model(label, feature):
 
 def main(argv):
     label, feature = read_train(argv[0])
-    train_cnn_model(label, feature)
+    train_cnn_model(label, feature, argv[1])
 
 if __name__ == "__main__":
     main(sys.argv[1:])
