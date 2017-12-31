@@ -9,7 +9,12 @@ kerassurgeon
 
 train.csv can be found in release
 
-train:
+train: (with prune)
 ```
-python test-surgeon.py train.csv
+python test-surgeon.py train.csv prune
+```
+
+train: (without prune)
+```
+python test-surgeon.py train.csv noprune
 ```
