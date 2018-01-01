@@ -31,6 +31,27 @@ def show(img, label):
     plt.show()
     plt.savefig('show_pic.png')
 
+def zero_weight(model,layer_name):
+    print("Estimate weight in DNN, layer[{}]".format(layer_name))
+    layer = model.get_layer(name=layer_name)
+    print("layer type = ", layer.__class__.__name__)
+    print("layer input shape", layer.input_shape)
+    weights = layer.get_weights()
+    config = layer.get_config()
+    print("Layer config :", layer.get_config)
+    weight, bias = weights[0], weights[1]
+    print("weight shape ", weight.shape)
+    node_sum = np.sum(weight, axis=0)
+    print("node sum shape ", node_sum.shape)
+    idx_sort = np.argsort(node_sum, axis=-1)
+    psize = 64
+    pidx = idx_sort[:psize]
+    print("pruning channel:", pidx)
+    for i in range(psize):
+        print("node[{}].sum = {}".format(pidx[i], node_sum[pidx[i]]))
+    model = delete_channels(model, layer, pidx.tolist())
+    return model
+
 def train_cnn_model(label, feature, mode):
     print("Mode == ", mode)
     feature = np.reshape(feature, (-1, 48, 48, 1))
@@ -44,26 +65,30 @@ def train_cnn_model(label, feature, mode):
 
     # cnn model
     model = Sequential()
-    model.add(Conv2D(16,(5,5),padding='same',input_shape=(48,48,1)))
+    model.add(Conv2D(32,(5,5),padding='same',input_shape=(48,48,1), name="conv_input"))
     model.add(Activation("relu"))
     model.add(MaxPooling2D(pool_size=5,strides=2))
-    model.add(Dropout(0.4))
+    model.add(Dropout(0.2))
 
-    model.add(Conv2D(32,(3,3),padding='same'))
+    model.add(Conv2D(64,(3,3),padding='same', name='conv1'))
+    model.add(Activation("relu"))
+    model.add(Conv2D(64,(3,3),padding='same', name='conv2'))
     model.add(Activation("relu"))
     model.add(MaxPooling2D(pool_size=3,strides=2))
-    model.add(Dropout(0.4))
+    model.add(Dropout(0.2))
     
-    model.add(Conv2D(64,(3,3),padding='same'))
+    model.add(Conv2D(128,(3,3),padding='same', name='conv3'))
+    model.add(Activation("relu"))
+    model.add(Conv2D(128,(3,3),padding='same', name='conv4'))
     model.add(Activation("relu"))
     model.add(MaxPooling2D(pool_size=3,strides=2))
-    model.add(Dropout(0.4))
+    model.add(Dropout(0.2))
 
     model.add(Flatten())
-    model.add(Dense(1024))
+    model.add(Dense(1024, name='dense0'))
     model.add(Activation("relu"))
-    model.add(Dropout(0.4))
-    model.add(Dense(7))
+    model.add(Dropout(0.2))
+    model.add(Dense(7, name='dense_output'))
     model.add(Activation("softmax"))
     
     model.compile(loss='categorical_crossentropy',
@@ -73,18 +98,21 @@ def train_cnn_model(label, feature, mode):
     
     # train model
     batch = 512
-    epo = 4
+    epo = 5
     
     history = model.fit(x_train,
             label_train, 
             batch_size=batch,
             epochs=epo,
             validation_data=(x_val, label_val))
+    
 
     if mode == 'prune' :
-        layer_i = 8
-        print("Prining layer = {} ".format(layer_i))
-        model = delete_channels(model, model.layers[layer_i], [0, 4, 16, 32])
+        layer_name = "conv3"
+        print("Prining layer : {} ".format(layer_name))
+        # see the weight
+        model = zero_weight(model, layer_name)
+        #model = delete_channels(model, model.layers[layer_i], [0, 4, 16, 32])
         model.compile(loss='categorical_crossentropy',
                 optimizer='adam',
                 metrics=['accuracy'])
