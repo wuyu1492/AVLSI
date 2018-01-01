@@ -108,7 +108,7 @@ def train_cnn_model(label, feature, mode):
     
 
     if mode == 'prune' :
-        layer_name = "conv3"
+        layer_name = "dense0"
         print("Prining layer : {} ".format(layer_name))
         # see the weight
         model = zero_weight(model, layer_name)
