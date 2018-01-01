@@ -7,8 +7,8 @@ from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 from keras.layers import BatchNormalization
 from keras.optimizers import Adadelta
-from kerassurgeon.operations import delete_channels
 import sys
+from utils import *
 # plot
 
 
@@ -20,8 +20,8 @@ def read_train(fn):
     label_int = data[:,0]
     label = to_categorical(label_int, 7)
     feature = data[:,1:].astype(np.float)
-    feature -= np.mean(feature,axis=1).reshape(-1,1)
-    feature /= (np.std(feature,axis=1).reshape(-1,1) + 1e-8)
+    feature -= np.mean(feature, axis=1).reshape(-1,1)
+    feature /= (np.std(feature, axis=1).reshape(-1,1) + 1e-8)
     return label, feature
 
 def show(img, label):
@@ -31,27 +31,6 @@ def show(img, label):
     plt.title(label_str)
     plt.show()
     plt.savefig('show_pic.png')
-
-def zero_weight(model,layer_name):
-    print("Estimate weight in DNN, layer[{}]".format(layer_name))
-    layer = model.get_layer(name=layer_name)
-    print("layer type = ", layer.__class__.__name__)
-    print("layer input shape", layer.input_shape)
-    weights = layer.get_weights()
-    config = layer.get_config()
-    print("Layer config :", layer.get_config)
-    weight, bias = weights[0], weights[1]
-    print("weight shape ", weight.shape)
-    node_sum = np.sum(weight, axis=0)
-    print("node sum shape ", node_sum.shape)
-    idx_sort = np.argsort(node_sum, axis=-1)
-    psize = 64
-    pidx = idx_sort[:psize]
-    print("pruning channel:", pidx)
-    for i in range(psize):
-        print("node[{}].sum = {}".format(pidx[i], node_sum[pidx[i]]))
-    model = delete_channels(model, layer, pidx.tolist())
-    return model
 
 def train_cnn_model(label, feature, mode):
     print("Mode == ", mode)
@@ -99,44 +78,67 @@ def train_cnn_model(label, feature, mode):
     
     # train model
     batch = 256
-    epo = 20
+    epo = 5
     
+    """
+    history = model.fit(x_train,
+            label_train, 
+            batch_size=batch,
+            epochs=epo,
+            validation_data=(x_val, label_val))
+    """
 
     if mode == 'prune' :
-        layer_name = "dense0"
+        layer_name = "conv3"
+        psize = 32
         print("Prining layer : {} ".format(layer_name))
+#        acc_list = []
+#        for psize in [16,32,64]:
+#            model = load_model("model_cnn.h5")
+#            model = zero_channels(model, layer_name, psize)
+#            model.compile(loss='categorical_crossentropy',
+#                    optimizer='adam',
+#                    metrics=['accuracy'])
+#            model.summary()
+#        
+#            acc = model.evaluate(x_val, label_val, batch_size=512)
+#            acc_list.append(acc)
         model = load_model("model_cnn.h5")
-        # see the weight
-        model = zero_weight(model, layer_name)
-        #model = delete_channels(model, model.layers[layer_i], [0, 4, 16, 32])
+        model = zero_channels(model, layer_name, psize)
+        model = zero_channels(model, "conv4", psize)
         model.compile(loss='categorical_crossentropy',
                 optimizer='adam',
                 metrics=['accuracy'])
-        model.summary()
-        model.evaluate(x_val, label_val, batch_size=512)
+        model.summary()        
+        acc = model.evaluate(x_val, label_val, batch_size=512)
+#        np.save(layer_name+"_prune_acc", np.array(acc_list))
+        print("evaluate merits", acc)
         model.save("model_cnn_prune.h5")
+    
     elif mode == 'fine-tune':
-        print("Fine-tune mode")
+        model = load_model("model_cnn_prune.h5")
+        model.summary()
         epo=5
-        model=load_model("model_cnn_prune.h5")
         history = model.fit(x_train,
                 label_train, 
                 batch_size=batch,
                 epochs=epo,
                 validation_data=(x_val, label_val))
         model.save("model_cnn_"+str(epo)+".h5")
+        np.save("history_val_acc.npy", history.history['val_acc'])
     else:
-        print("pretrain mode!!!")
+        model.summary()
         history = model.fit(x_train,
                 label_train, 
                 batch_size=batch,
                 epochs=epo,
                 validation_data=(x_val, label_val))
         model.save("model_cnn.h5")
-    #np.save("history_acc.npy", history.history['acc'])
-    #np.save("history_val_acc.npy", history.history['val_acc'])
-    #np.save("cnn_x_val.npy", x_val)
-    #np.save("cnn_label_val.npy", label_val)
+
+#    np.save("history_acc.npy", history.history['acc'])
+#    np.save("history_val_acc.npy", history.history['val_acc'])
+#    np.save("cnn_x_val.npy", x_val)
+#    np.save("cnn_label_val.npy", label_val)
     
     #plot_saliency(model, x_val[0], str(np.argmax(label_val[0])))
 
