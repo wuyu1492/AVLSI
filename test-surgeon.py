@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from keras.utils import to_categorical
 from keras.models import Sequential
+from keras.models import load_model
 from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 from keras.layers import BatchNormalization
@@ -97,8 +98,8 @@ def train_cnn_model(label, feature, mode):
     model.summary()
     
     # train model
-    batch = 512
-    epo = 5
+    batch = 256
+    epo = 20
     
     history = model.fit(x_train,
             label_train, 
@@ -110,6 +111,7 @@ def train_cnn_model(label, feature, mode):
     if mode == 'prune' :
         layer_name = "dense0"
         print("Prining layer : {} ".format(layer_name))
+        model = load_model("model_cnn.h5")
         # see the weight
         model = zero_weight(model, layer_name)
         #model = delete_channels(model, model.layers[layer_i], [0, 4, 16, 32])
@@ -117,19 +119,30 @@ def train_cnn_model(label, feature, mode):
                 optimizer='adam',
                 metrics=['accuracy'])
         model.summary()
-    
-    epo = 1
-    history = model.fit(x_train,
-            label_train, 
-            batch_size=batch,
-            epochs=epo,
-            validation_data=(x_val, label_val))
-
-    model.save("model_cnn.h5")
-    np.save("history_acc.npy", history.history['acc'])
-    np.save("history_val_acc.npy", history.history['val_acc'])
-    np.save("cnn_x_val.npy", x_val)
-    np.save("cnn_label_val.npy", label_val)
+        model.evaluate(x_val, label_val, batch_size=512)
+        model.save("model_cnn_prune.h5")
+    elif mode == 'fine-tune':
+        print("Fine-tune mode")
+        epo=5
+        model=load_model("model_cnn_prune.h5")
+        history = model.fit(x_train,
+                label_train, 
+                batch_size=batch,
+                epochs=epo,
+                validation_data=(x_val, label_val))
+        model.save("model_cnn_"+str(epo)+".h5")
+    else:
+        print("pretrain mode!!!")
+        history = model.fit(x_train,
+                label_train, 
+                batch_size=batch,
+                epochs=epo,
+                validation_data=(x_val, label_val))
+        model.save("model_cnn.h5")
+    #np.save("history_acc.npy", history.history['acc'])
+    #np.save("history_val_acc.npy", history.history['val_acc'])
+    #np.save("cnn_x_val.npy", x_val)
+    #np.save("cnn_label_val.npy", label_val)
     
     #plot_saliency(model, x_val[0], str(np.argmax(label_val[0])))
 
