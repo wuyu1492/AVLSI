@@ -101,12 +101,6 @@ def train_cnn_model(label, feature, mode):
     batch = 256
     epo = 20
     
-    history = model.fit(x_train,
-            label_train, 
-            batch_size=batch,
-            epochs=epo,
-            validation_data=(x_val, label_val))
-    
 
     if mode == 'prune' :
         layer_name = "dense0"
