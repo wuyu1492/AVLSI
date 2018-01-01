@@ -19,8 +19,8 @@ def read_train(fn):
     label_int = data[:,0]
     label = to_categorical(label_int, 7)
     feature = data[:,1:].astype(np.float)
-    feature -= np.mean(feature, axis=1).reshape(-1,1)
-    #feature /= (np.std(feature, axis=1).reshape(-1,1) + 1e-8)
+    feature -= np.mean(feature).reshape(-1,1)
+    feature /= (np.std(feature).reshape(-1,1) + 1e-8)
     return label, feature
 
 def show(img, label):
