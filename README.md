@@ -1,15 +1,26 @@
 # AVLSI
 
-Dependenceies:
-install: 
+## Dependenceies:
+
+install:
+
 pandas
+
 numpy
+
 keras
+
 kerassurgeon
 
-train.csv can be found in release
+## How to use
 
-train: (with prune)
+train.csv and pretrained model can be found in release
+
+train: (without prune)
+```
+python test-surgeon.py train.csv noprune
+```
+prune: 
 ```
 python test-surgeon.py train.csv prune
 ```
@@ -17,7 +28,4 @@ fine-tune:(after prune)
 ```
 python test-surgeon.py train.csv fine-tune
 ```
-train: (without prune)
-```
-python test-surgeon.py train.csv noprune
-```
+
