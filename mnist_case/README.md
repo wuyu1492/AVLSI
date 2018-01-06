@@ -1,0 +1,1 @@
+## Prune on MNIST database
