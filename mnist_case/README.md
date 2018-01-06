@@ -1,6 +1,6 @@
-## Prune on MNIST database
+# Prune on MNIST database
 Put mnist_model.py utils_mnist.py train.csv in the same path
-# Usage
+## Usage
 pretrain
 ```
 python mnist_model.py
