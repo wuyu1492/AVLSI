@@ -28,7 +28,7 @@ For example, to prune "dense4" in dnn model:
 ```
 Perform pruning on dense3 first:
 ```
-model = zero_weight(model, "dense3", 32)
+model = zero_weight(model, "dense3", 64)
 model = delete_layer(model, model.get_layer(name='dense4'))
 model = delete_layer(model, model.get_layer(name='activation_5')) #this is optional
 ```
