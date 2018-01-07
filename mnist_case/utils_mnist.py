@@ -2,18 +2,10 @@ import numpy as np
 from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 from keras.layers import BatchNormalization
-from kerassurgeon.operations import delete_channels
 from keras import backend as K
 from keras.engine.topology import Layer
+from kerassurgeon.operations import delete_channels
 
-
-#class MaskDense(Layer):
-#    def __init__(self, output_dim, **kwargs):
-#        self.output_dim = output_dim
-#        super(MaskDense, self).__init__(**kwargs)
-#
-#    def build(self, inputshape):
-#        self.kernel
 
 def get_layer_index(model, name='dense0'):
     idx = -1
@@ -26,6 +18,37 @@ def get_layer_index(model, name='dense0'):
             count += 1
     return idx
 
+def mean_activation_rank(model, input_img, name="conv3", psize=32):
+    """
+    use mean of layer output as sign of activation
+    for pruning conv layer
+    """
+    n_filter = model.get_layer(name=name).output_shape[-1]
+    if psize >= n_filter:
+        print("prune size too large!!!")
+        return None
+    inputs = model.input
+    mean = K.mean(model.get_layer(name=name).output, axis=(0,1,2))
+    iterate = K.function([inputs], [mean])
+    fake_input = K.zeros(shape=(10,1))
+    mean_values = iterate([input_img])
+    print("mean values:", mean_values)
+    idx_sort = np.argsort(mean_values)[0]
+    pidx = idx_sort[:psize]
+    print(pidx)
+    model = delete_channels(model, model.get_layer(name=name),pidx.tolist())
+    return model
+
+def random_conv_channel(model, name="conv3", psize=32):
+    n_filter = model.get_layer(name=name).output_shape[-1]
+    if psize >= n_filter:
+        print("prune size too large!!!")
+        return None
+    pidx = np.arange(n_filter)
+    np.random.shuffle(pidx)
+    pidx = pidx[:psize]
+    model = delete_channels(model, model.get_layer(name=name), pidx.tolist())
+    return model
 
 def zero_weight(model,layer_name, psize):
     print("Estimate weight in DNN, layer[{}]".format(layer_name))
