@@ -32,3 +32,32 @@ model = zero_weight(model, "dense3", 64)
 model = delete_layer(model, model.get_layer(name='dense4'))
 model = delete_layer(model, model.get_layer(name='activation_5')) #this is optional
 ```
+
+### Ranking criteria
+Ranking of channels or nodes:
+
+1. weight
+
+for dnn
+```
+zero_weight(model, layer_name, psize)
+```
+
+for cnn
+```
+zero_channels(model, layer_name, psize)
+```
+
+2. activation of conv layer filters
+```
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+input_img = x_test
+mean_activation_rank(model, input_img, name, psize)
+```
+The input_img refers to input of model. This criterion is proved to be effictive. 
+
+test on conv3, prune size = 48
+
+random: acc = 0.8438
+
+w.r.t. channel activation: acc = 0.9738
