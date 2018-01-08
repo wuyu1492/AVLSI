@@ -30,7 +30,6 @@ def mean_activation_rank(model, input_img, name="conv3", psize=32):
     inputs = model.input
     mean = K.mean(model.get_layer(name=name).output, axis=(0,1,2))
     iterate = K.function([inputs], [mean])
-    fake_input = K.zeros(shape=(10,1))
     mean_values = iterate([input_img])
     print("mean values:", mean_values)
     idx_sort = np.argsort(mean_values)[0]
@@ -38,6 +37,38 @@ def mean_activation_rank(model, input_img, name="conv3", psize=32):
     print(pidx)
     model = delete_channels(model, model.get_layer(name=name),pidx.tolist())
     return model
+
+def grad_activation_rank(model, input_img, name="conv3",psize=32):
+    """ use gradient as sign of activation """
+    layer = model.get_layer(name=name)
+    n_node = layer.output_shape[-1]
+    if psize >= n_node:
+        print("prune size too large!!!")
+        return None
+    inputs = model.input
+    out_shape = layer.output_shape
+    if len(out_shape)>2:
+        mean_axis = (0,1,2)
+    else:
+        mean_axis = 0
+    mean = K.mean(layer.output, axis=mean_axis)
+    print("mean shape:", mean.shape)
+    std_grads = []
+    for i in range(n_node):
+        print("grads[{}]".format(i))
+        grads = K.gradients(mean[i], inputs)[0]
+        grads /= (K.sqrt(K.mean(K.square(grads))))
+        grads = K.sum(grads)
+        iterate = K.function([inputs],[grads])
+        grads = iterate([input_img])
+        std_grads.append(grads[0])
+    print("std_grads:", std_grads)
+    pidx = np.argsort(std_grads)
+    print(pidx)
+    pidx = pidx[:psize]
+    model = delete_channels(model, layer, pidx.tolist())
+    return model
+
 
 def random_conv_channel(model, name="conv3", psize=32):
     n_filter = model.get_layer(name=name).output_shape[-1]
