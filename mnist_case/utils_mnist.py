@@ -72,13 +72,6 @@ def grad_activation_rank(model, input_img, name="conv3",psize=0.5):
     model = delete_channels(model, layer, pidx.tolist())
     return model
 
-def grad_activation_rank2(model, input_img, name="conv3", psize=32):
-    """ another way of gradients """
-    n_node = model.get_layer(name=name).output_shape[-1]
-    psize = int(round(psize*n_node))
-
-
-
 def random_conv_channel(model, name="conv3", psize=0.5):
     n_filter = model.get_layer(name=name).output_shape[-1]
     n_node = model.get_layer(name=name).output_shape[-1]
@@ -88,6 +81,48 @@ def random_conv_channel(model, name="conv3", psize=0.5):
     pidx = pidx[:psize]
     model = delete_channels(model, model.get_layer(name=name), pidx.tolist())
     return model
+
+def zero_weight_all(model, psize=0.5):
+    """ ranking across all dense layers """
+    node_sums = []
+    layer_start = {}
+    pidx_dict = {}
+    sidx_dict = {}
+    node_num = 0
+    for l in range(len(model.layers)):
+        layer = model.layers[l]
+        layer_class = layer.__class__.__name__
+        if not layer_class == 'Dense':
+            continue
+        elif layer.name == 'dense_o':
+            continue
+        layer_start[layer.name] = node_num
+        pidx_dict[layer.name] = []
+        n_node = layer.output_shape[-1]
+        for i in range(n_node):
+            sidx_dict[i+node_num] = layer.name
+        node_num += n_node
+        weights = layer.get_weights()
+        weight = weights[0]
+        node_weight = np.sum(np.absolute(weight), axis=0)
+        node_weight /= np.sqrt(np.mean(np.square(node_weight), keepdims=True))
+        if len(node_sums)==0:
+            node_sums = node_weight.tolist()
+        else:
+            node_sums += node_weight.tolist()
+    idx_sort = np.argsort(node_sums, axis=-1)
+    psize = int(round(psize*node_num))
+    pidx = idx_sort[:psize]
+    for p in pidx:
+        layer_name = sidx_dict[p]
+        pidx_dict[layer_name].append(p-layer_start[layer_name])
+    for name, p_idx in pidx_dict.items():
+        if len(p_idx) == 0:
+            continue
+        print("prune layer "+name+" for nodes: ", p_idx)
+        model = delete_channels(model, model.get_layer(name=name), p_idx)
+    return model
+
 
 def zero_weight(model,layer_name, psize=0.5):
     print("Estimate weight in DNN, layer[{}]".format(layer_name))
