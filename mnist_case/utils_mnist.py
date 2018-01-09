@@ -140,6 +140,49 @@ def zero_weight(model,layer_name, psize=0.5):
     model = delete_channels(model, layer, pidx.tolist())
     return model
 
+def zero_channels_all(model, psize=0.5):
+    """ ranking across all conv layers """
+    node_sums = []
+    layer_start = {}
+    pidx_dict = {}
+    sidx_dict = {}
+    node_num = 0
+    for l in range(len(model.layers)):
+        layer = model.layers[l]
+        layer_class = layer.__class__.__name__
+        if not layer_class == 'Conv2D':
+            continue
+        elif layer.name == 'conv0':
+            continue
+        layer_start[layer.name] = node_num
+        n_node = layer.output_shape[-1]
+        pidx_dict[layer.name] = []
+        for i in range(n_node):
+            sidx_dict[i+node_num] = layer.name
+        node_num += n_node
+        weights = layer.get_weights()
+        weight = np.array(weights[0])
+        ch_num = weight.shape[3]
+        w_sum = np.zeros(ch_num)
+        for i in range(ch_num):
+            w_sum[i] = np.sum(np.absolute(weight[:,:,:,i]))
+        w_sum /= np.sqrt(np.mean(np.square(w_sum[i]), keepdims=True))
+        if len(node_sums)==0:
+            node_sums = w_sum.tolist()
+        else:
+            node_sums += w_sum.tolist()
+    idx_sort = np.argsort(node_sums, axis=-1)
+    psize = int(round(psize*node_num))
+    pidx = idx_sort[:psize]
+    for p in pidx:
+        name = sidx_dict[p]
+        pidx_dict[name].append(p-layer_start[name])
+    for name, p_idx in pidx_dict.items():
+        print("pruning "+name+" prune channels:", p_idx)
+        model = delete_channels(model, model.get_layer(name=name), p_idx)
+    return model
+
+
 def zero_channels(model, layer_name, psize=0.5):
     print("Estimate weight in CNN, layer[{}]".format(layer_name))
     layer = model.get_layer(name=layer_name)
