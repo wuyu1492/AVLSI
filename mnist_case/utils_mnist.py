@@ -18,17 +18,22 @@ def get_layer_index(model, name='dense0'):
             count += 1
     return idx
 
-def mean_activation_rank(model, input_img, name="conv3", psize=32):
+def mean_activation_rank(model, input_img, name="conv3", psize=0.5):
     """
     use mean of layer output as sign of activation
     for pruning conv layer
+    psize: floating point 0 to 1
     """
-    n_filter = model.get_layer(name=name).output_shape[-1]
-    if psize >= n_filter:
-        print("prune size too large!!!")
-        return None
+    layer = model.get_layer(name=name)
+    n_node = layer.output_shape[-1]
+    psize = int(round(psize*n_node))
+    out_shape = layer.output_shape
+    if len(out_shape)>2:
+        mean_axis = (0,1,2)
+    else:
+        mean_axis = 0
     inputs = model.input
-    mean = K.mean(model.get_layer(name=name).output, axis=(0,1,2))
+    mean = K.mean(model.get_layer(name=name).output, axis=mean_axis)
     iterate = K.function([inputs], [mean])
     mean_values = iterate([input_img])
     print("mean values:", mean_values)
@@ -38,13 +43,11 @@ def mean_activation_rank(model, input_img, name="conv3", psize=32):
     model = delete_channels(model, model.get_layer(name=name),pidx.tolist())
     return model
 
-def grad_activation_rank(model, input_img, name="conv3",psize=32):
+def grad_activation_rank(model, input_img, name="conv3",psize=0.5):
     """ use gradient as sign of activation """
     layer = model.get_layer(name=name)
     n_node = layer.output_shape[-1]
-    if psize >= n_node:
-        print("prune size too large!!!")
-        return None
+    psize = int(round(psize*n_node))
     inputs = model.input
     out_shape = layer.output_shape
     if len(out_shape)>2:
@@ -69,21 +72,28 @@ def grad_activation_rank(model, input_img, name="conv3",psize=32):
     model = delete_channels(model, layer, pidx.tolist())
     return model
 
+def grad_activation_rank2(model, input_img, name="conv3", psize=32):
+    """ another way of gradients """
+    n_node = model.get_layer(name=name).output_shape[-1]
+    psize = int(round(psize*n_node))
 
-def random_conv_channel(model, name="conv3", psize=32):
+
+
+def random_conv_channel(model, name="conv3", psize=0.5):
     n_filter = model.get_layer(name=name).output_shape[-1]
-    if psize >= n_filter:
-        print("prune size too large!!!")
-        return None
+    n_node = model.get_layer(name=name).output_shape[-1]
+    psize = int(round(psize*n_node))
     pidx = np.arange(n_filter)
     np.random.shuffle(pidx)
     pidx = pidx[:psize]
     model = delete_channels(model, model.get_layer(name=name), pidx.tolist())
     return model
 
-def zero_weight(model,layer_name, psize):
+def zero_weight(model,layer_name, psize=0.5):
     print("Estimate weight in DNN, layer[{}]".format(layer_name))
     layer = model.get_layer(name=layer_name)
+    n_node = model.get_layer(name=name).output_shape[-1]
+    psize = int(round(psize*n_node))
     print("layer type = ", layer.__class__.__name__)
     weights = layer.get_weights()
     weight = weights[0]
@@ -95,9 +105,11 @@ def zero_weight(model,layer_name, psize):
     model = delete_channels(model, layer, pidx.tolist())
     return model
 
-def zero_channels(model, layer_name, psize):
+def zero_channels(model, layer_name, psize=0.5):
     print("Estimate weight in CNN, layer[{}]".format(layer_name))
     layer = model.get_layer(name=layer_name)
+    n_node = model.get_layer(name=name).output_shape[-1]
+    psize = int(round(psize*n_node))
     weights = layer.get_weights()
     print("CNN weight dim axis=0 : ", len(weights)) 
     # weights[0] shape = (ch_dim,ch_dim, input_ch_num,ch_num)
