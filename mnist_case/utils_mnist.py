@@ -4,7 +4,7 @@ from keras.layers import Conv2D, MaxPooling2D
 from keras.layers import BatchNormalization
 from keras import backend as K
 from keras.engine.topology import Layer
-from kerassurgeon.operations import delete_channels
+from kerassurgeon.operations import delete_channels, delete_layer
 
 
 def get_layer_index(model, name='dense0'):
@@ -43,6 +43,75 @@ def mean_activation_rank(model, input_img, name="conv3", psize=0.5):
     model = delete_channels(model, model.get_layer(name=name),pidx.tolist())
     return model
 
+def grad_layerwise_rank(model, input_img, psize=1):
+    """ 
+    use gradient for layer-wise ranking 
+    psize is an int indicating how many layers to prune
+    """
+    layer_idx = []
+    layer_grads = []
+    lidx = 0
+    for layer in model.layers:
+        layer_class = layer.__class__.__name__
+        if layer_class == 'Conv2D':
+            layer_idx.append(lidx)
+            lidx += 1
+        elif layer_class == 'Dense':
+            layer_idx.append(lidx)
+            lidx += 1
+        else:
+            lidx += 1
+            continue
+        inputs = model.input
+        mean = K.mean(layer.output)
+        #print("mean :", mean)
+        grads = K.gradients(mean, inputs)[0]
+        grads = K.sum(K.abs(grads))
+        print("grads{} shape:{}".format(layer_class, grads.shape))
+        iterate = K.function([inputs, K.learning_phase()],[grads])
+        grads = iterate([input_img, 0])
+        layer_grads.append(grads[0])
+    print("layer grads:",layer_grads)
+    pidx = np.argsort(layer_grads)
+    #new_pidx = []
+    #for p in pidx:
+    #    new_pidx.append(layer_idx[p])
+    #print("prune idx:", new_pidx)
+    pidx = pidx[:psize]
+    pidx = pidx.tolist()
+    print("pruning idx:", pidx)
+    # pruning according to input and output size
+    for i in pidx:
+        layer = model.layers[layer_idx[i]]
+        layer_class = layer.__class__.__name__
+        if i == 0:
+            input_size = layer.input_shape
+        else:
+            input_size = model.layers[layer_idx[i-1]].output_shape
+        if i == len(layer_idx)-1:
+            output_size = layer.output_shape
+        else:
+            output_size = model.layers[layer_idx[i+1]].input_shape
+        if input_size[-1] > output_size[-1]:
+            if i == 0:
+                # we do not delete input layer in dnn
+                continue
+            # former layer lager than latter layer
+            # we prune former layer to make them fit
+            psize_chnl = input_size[-1] - output_size[-1]
+            last_layer = model.layers[layer_idx[i-1]]
+            model = delete_channels(model, last_layer, np.arange(psize_chnl).tolist())
+            #model = delete_layer(model, layer)
+        elif input_size[-1] < output_size[-1]:
+            # former layer smaller than latter
+            # happens in CNN
+            # we prune this layer to make them fit
+            psize_chnl = output_size[-1] - input_size[-1]
+            model = delete_channels(model, layer, np.arange(psize_chnl).tolist())
+        print("Pruning layer {}".format(layer.name))
+        model = delete_layer(model, layer)
+        return model
+
 def grad_activation_rank(model, input_img, name="conv3",psize=0.5):
     """ use gradient as sign of activation """
     layer = model.get_layer(name=name)
@@ -60,8 +129,7 @@ def grad_activation_rank(model, input_img, name="conv3",psize=0.5):
     for i in range(n_node):
         print("grads[{}]".format(i))
         grads = K.gradients(mean[i], inputs)[0]
-        grads /= (K.sqrt(K.mean(K.square(grads))))
-        grads = K.sum(grads)
+        grads = K.sum(K.abs(grads))
         iterate = K.function([inputs],[grads])
         grads = iterate([input_img])
         std_grads.append(grads[0])
@@ -73,6 +141,9 @@ def grad_activation_rank(model, input_img, name="conv3",psize=0.5):
     return model
 
 def random_conv_channel(model, name="conv3", psize=0.5):
+    """ channel wise random pruning 
+        for conv layer
+    """
     n_filter = model.get_layer(name=name).output_shape[-1]
     n_node = model.get_layer(name=name).output_shape[-1]
     psize = int(round(psize*n_node))
@@ -81,6 +152,40 @@ def random_conv_channel(model, name="conv3", psize=0.5):
     pidx = pidx[:psize]
     model = delete_channels(model, model.get_layer(name=name), pidx.tolist())
     return model
+
+def random_conv_global(model, psize=0.9):
+    """ channel wise global pruning """
+    layer_start = {}
+    pidx_dict = {}
+    sidx_dict = {}
+    node_num = 0
+    for l in range(len(model.layers)):
+        layer = model.layers[l]
+        layer_class = layer.__class__.__name__
+        if not layer_class == 'Conv2D':
+            continue
+        elif layer.name == 'conv0':
+            continue
+        layer_start[layer.name] = node_num
+        pidx_dict[layer.name] = []
+        n_node = layer.outut_shape[-1]
+        for i in range(n_node):
+            sidx_dict[i+node_num] = layer.name
+        node_num += n_node
+    idx_rand = np.arange(node_num)
+    idx_rand = np.random.shuffle(idx_rand)
+    psize = int(round(psize*node_num))
+    pidx = idx_rand[:psize]
+    for p in pidx:
+        layer_name = sidx_dict[p]
+        pidx_dict[layer_name].append(p-layer_start[layer_name])
+    for name, p_idx in pidx_dict.items():
+        if len(p_idx) == 0:
+            continue
+        print("Pruning layer "+name+" channels: ", p_idx)
+        model = delete_channels(model, model.get_layer(name=name), p_idx)
+    return model
+
 
 def zero_weight_all(model, psize=0.5):
     """ ranking across all dense layers """

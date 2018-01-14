@@ -1,6 +1,7 @@
 from keras.datasets import mnist
 import numpy as np
 from keras.utils import to_categorical
+from keras.utils.vis_utils import plot_model
 from keras.models import Sequential
 from keras.models import load_model, Model
 from keras.layers import Dense, Dropout, Activation, Flatten, Input
@@ -35,6 +36,7 @@ def get_model():
     model.add(Activation("relu"))
     model.add(Dense(10, name='dense_o'))
     model.add(Activation("softmax"))
+    plot_model(model, to_file='model_dnn_plot.png', show_shapes=True, show_layer_names=True)
 
     return model
 
@@ -66,8 +68,9 @@ def train(mode="pretrain"):
 #            validation_data=(x_test, y_test))
     p_size = 992
     if mode=='prune':
-        model = load_model("model_mnist.h5")
-        model = zero_weight(model, "dense0", 992)
+        from kerassurgeon.operations import delete_layer
+        model = load_model("model_dnn_mnist.h5")
+        model = grad_layerwise_rank(model, x_test, psize=1)
         #model = zero_channels(model, "conv4", 64)
         model.compile(loss="categorical_crossentropy",
                 optimizer='rmsprop',
@@ -75,30 +78,30 @@ def train(mode="pretrain"):
         model.summary()
         acc = model.evaluate(x_test, y_test, batch_size=1024)
         print("Post pruning accuracy =", acc)
-        model.save("model_mnist_prune.h5")
+        model.save("model_dnn_mnist_prune.h5")
     elif mode=="fine-tune":
-        model = load_model("model_mnist_prune.h5")
+        model = load_model("model_dnn_mnist_prune.h5")
         model.summary()
-        epo = 5
+        epo = 6
         history = model.fit(x_train,
                 y_train,
                 batch_size=batch,
                 epochs=epo,
                 validation_data=(x_test, y_test))
-        model.save("model_mnist_"+str(p_size)+".h5")
+        model.save("model_dnn_mnist_"+str(p_size)+".h5")
     else:
         model = get_model()
         model.compile(loss="categorical_crossentropy",
                 optimizer='rmsprop',
                 metrics=['accuracy'])
         model.summary()
-        epo = 10
+        epo = 6
         history = model.fit(x_train,
                 y_train,
                 batch_size=batch,
                 epochs=epo,
                 validation_data=(x_test, y_test))
-        model.save("model_mnist.h5")
+        model.save("model_dnn_mnist.h5")
 
         
 
