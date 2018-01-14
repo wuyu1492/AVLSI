@@ -73,6 +73,7 @@ def grad_layerwise_rank(model, input_img, psize=1):
         layer_grads.append(grads[0])
     print("layer grads:",layer_grads)
     pidx = np.argsort(layer_grads)
+    pidx = np.delete(pidx, [i for i in pidx if pidx[i] == 0])
     #new_pidx = []
     #for p in pidx:
     #    new_pidx.append(layer_idx[p])
