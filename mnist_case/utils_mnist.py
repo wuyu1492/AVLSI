@@ -262,6 +262,8 @@ def zero_weight_all(model, psize=0.5):
     for name, p_idx in pidx_dict.items():
         if len(p_idx) == 0:
             continue
+        elif len(p_idx) >= model.get_layer(name=name).output_shape[-1]:
+            p_idx.pop()
         print("prune layer "+name+" for nodes: ", p_idx)
         model = delete_channels(model, model.get_layer(name=name), p_idx)
     return model
@@ -322,7 +324,7 @@ def zero_channels_all(model, psize=0.5):
         pidx_dict[name].append(p-layer_start[name])
     for name, p_idx in pidx_dict.items():
         print("pruning "+name+" prune channels:", p_idx)
-        if len(p_idx) >= layer.output_shape[-1]:
+        if len(p_idx) >= model.get_layer(name=name).output_shape[-1]:
             p_idx.pop()
         model = delete_channels(model, model.get_layer(name=name), p_idx)
     return model
