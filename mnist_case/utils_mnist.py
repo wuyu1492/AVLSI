@@ -311,7 +311,7 @@ def zero_channels_all(model, psize=0.5):
         w_sum = np.zeros(ch_num)
         for i in range(ch_num):
             w_sum[i] = np.sum(np.absolute(weight[:,:,:,i]))
-        w_sum /= np.sqrt(np.mean(np.square(w_sum[i]), keepdims=True))
+        w_sum /= np.sqrt(np.mean(np.square(w_sum), keepdims=True))
         if len(node_sums)==0:
             node_sums = w_sum.tolist()
         else:
