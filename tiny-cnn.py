@@ -7,7 +7,7 @@ from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 from keras.layers import BatchNormalization
 from keras.optimizers import Adadelta
-from utils_mnist import *
+#from utils_mnist import *
 import sys
 # plot
 
@@ -51,38 +51,38 @@ def train_cnn_model(label, feature, mode):
         model.add(BatchNormalization())
         model.add(Activation("relu"))
         model.add(Dropout(0.4))
-        model.add(Conv2D(64,(5,5),padding='same', name='conv1'))
+        model.add(Conv2D(23,(5,5),padding='same', name='conv1'))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
         model.add(MaxPooling2D(pool_size=5,strides=2))
         model.add(Dropout(0.2))
 
-        model.add(Conv2D(128,(3,3),padding='same', name='conv2'))
+        model.add(Conv2D(12,(3,3),padding='same', name='conv2'))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
         model.add(Dropout(0.4))
-        model.add(Conv2D(128,(3,3),padding='same', name='conv3'))
+        model.add(Conv2D(13,(3,3),padding='same', name='conv3'))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
         model.add(MaxPooling2D(pool_size=3,strides=2))
         model.add(Dropout(0.2))
         
-        model.add(Conv2D(256,(3,3),padding='same', name='conv4'))
+        model.add(Conv2D(40,(3,3),padding='same', name='conv4'))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
         model.add(Dropout(0.4))
-        model.add(Conv2D(256,(3,3),padding='same', name='conv5'))
+        model.add(Conv2D(65,(3,3),padding='same', name='conv5'))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
         model.add(MaxPooling2D(pool_size=3,strides=2))
         model.add(Dropout(0.2))
 
         model.add(Flatten())
-        model.add(Dense(1024, name='dense0'))
+        model.add(Dense(76, name='dense0'))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
         model.add(Dropout(0.4))
-        model.add(Dense(512, name='dense1'))
+        model.add(Dense(38, name='dense1'))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
         model.add(Dropout(0.4))
@@ -92,7 +92,7 @@ def train_cnn_model(label, feature, mode):
     
     # train model
     batch = 256
-    epo = 1
+    epo = 50
     
     """
     history = model.fit(x_train,
@@ -103,41 +103,35 @@ def train_cnn_model(label, feature, mode):
     """
 
     if mode == 'prune' :
-        #try:
-        #    model = load_model("model_cnn_50.h5")
-        #except:
-        #    model = load_model("model_cnn.h5")
-        #model = load_model("model_cnn.h5")
-        model = load_model("model_cnn_3.h5")
+        model = load_model("tiny_cnn.h5")
         layer_name = "dense0"
         print("Prining layer : {} ".format(layer_name))
-        model = zero_weight(model, layer_name, psize=0.3)#0.9 0.5
-        model = zero_weight(model, "dense1", psize=0.3)#0.9 0.5
-        model = zero_channels_all(model,psize=0.2)#0.7 0.4
+        model = zero_weight(model, layer_name)
+        model = zero_channels_all(model,psize=0.95)
         model.compile(loss='categorical_crossentropy',
                 optimizer='adam',
                 metrics=['accuracy'])
         model.summary()
     
-        acc = model.evaluate(x_val, label_val, batch_size=1024)
+        acc = model.evaluate(x_val, label_val, batch_size=512)
         print("evaluate merits", acc)
-        model.save("model_cnn_prune.h5")
+        model.save("tiny_cnn_prune.h5")
     
     elif mode == 'fine-tune':
-        model = load_model("model_cnn_prune.h5")
+        model = load_model("tiny_cnn_15.h5")
         model.summary()
-        epo=10
+        epo=40
         history = model.fit(x_train,
                 label_train, 
                 batch_size=batch,
                 epochs=epo,
                 validation_data=(x_val, label_val))
-        model.save("model_cnn_"+str(epo)+".h5")
+        model.save("tiny_cnn_finetune.h5")
         np.save("retrain_acc"+str(epo)+".npy", history.history['val_acc'])
     else:
         #model = load_model("model_cnn.h5")
         model = get_model()
-        model = load_model("model_cnn.h5")
+        #model = load_model("tiny_cnn.h5")
         model.compile(loss='categorical_crossentropy',
                 optimizer='adam',
                 metrics=['accuracy'])
@@ -147,7 +141,8 @@ def train_cnn_model(label, feature, mode):
                 batch_size=batch,
                 epochs=epo,
                 validation_data=(x_val, label_val))
-        model.save("model_cnn.h5")
+        model.save("tiny_cnn.h5")
+        np.save("tiny_hist", history.history['val_acc'])
 
 #    np.save("history_acc.npy", history.history['acc'])
 #    np.save("history_val_acc.npy", history.history['val_acc'])
