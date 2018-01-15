@@ -1,10 +1,10 @@
 import numpy as np
-from keras.layers import Dense, Dropout, Activation, Flatten
+from keras.layers import Dense, Dropout, Activation, Flatten, Masking
 from keras.layers import Conv2D, MaxPooling2D
 from keras.layers import BatchNormalization
 from keras import backend as K
 from keras.engine.topology import Layer
-from kerassurgeon.operations import delete_channels, delete_layer
+from kerassurgeon.operations import delete_channels, delete_layer, insert_layer
 
 
 def get_layer_index(model, name='dense0'):
@@ -17,6 +17,7 @@ def get_layer_index(model, name='dense0'):
         else:
             count += 1
     return idx
+
 
 def mean_activation_rank(model, input_img, name="conv3", psize=0.5):
     """
@@ -187,6 +188,43 @@ def random_conv_global(model, psize=0.9):
         model = delete_channels(model, model.get_layer(name=name), p_idx)
     return model
 
+def mean_weight_mask(model, name="dense0", th=0.05):
+    layer = model.get_layer(name=name)
+    layer_class = layer.__class__.__name__
+    if not layer_class == 'Dense':
+        print(" Please assign a dense layer")
+        return model
+    weights = layer.get_weights()
+    weight = weights[0]
+    zeros_n = np.count_nonzero(weight)
+    print("Before pruning: nonzeros in weights:", zeros_n)
+    zero_weight = np.zeros_like(weight)
+    weight = np.maximum(weight, zero_weight)
+    it  = np.nditer(weight, flags=['multi_index'])
+    while not it.finished:
+        if np.abs(it[0])<th:
+            weight[it.multi_index] = 0.0
+        it.iternext()
+    zeros_n = np.count_nonzero(weight)
+    print("After Pruning: nonzeros in weights:", zeros_n)
+    weights[0] = weight
+    layer.set_weights(weights)
+    mask_layer = Masking(mask_value=0.0)
+    model = insert_layer(model, layer, mask_layer)
+    return model
+
+def check_zeros(model, name="dense0"):
+    layer = model.get_layer(name=name)
+    layer_class = layer.__class__.__name__
+    if not layer_class == 'Dense':
+        print(" Please assign a dense layer")
+        return 0
+    weights = layer.get_weights()
+    weight = weights[0]
+    zeros_n = np.count_nonzero(weight)
+    print("check: nonzeros in weights:", zeros_n)
+    
+    
 
 def zero_weight_all(model, psize=0.5):
     """ ranking across all dense layers """
