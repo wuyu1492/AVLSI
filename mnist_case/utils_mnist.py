@@ -191,15 +191,13 @@ def random_conv_global(model, psize=0.9):
 def mean_weight_mask(model, name="dense0", th=0.05):
     layer = model.get_layer(name=name)
     layer_class = layer.__class__.__name__
-    if not layer_class == 'Dense':
-        print(" Please assign a dense layer")
+    if not (layer_class == 'Dense'):
+        print(" Please assign a dense or conv layer")
         return model
     weights = layer.get_weights()
     weight = weights[0]
     zeros_n = np.count_nonzero(weight)
     print("Before pruning: nonzeros in weights:", zeros_n)
-    zero_weight = np.zeros_like(weight)
-    weight = np.maximum(weight, zero_weight)
     it  = np.nditer(weight, flags=['multi_index'])
     while not it.finished:
         if np.abs(it[0])<th:
@@ -207,6 +205,7 @@ def mean_weight_mask(model, name="dense0", th=0.05):
         it.iternext()
     zeros_n = np.count_nonzero(weight)
     print("After Pruning: nonzeros in weights:", zeros_n)
+
     weights[0] = weight
     layer.set_weights(weights)
     mask_layer = Masking(mask_value=0.0)
@@ -323,6 +322,8 @@ def zero_channels_all(model, psize=0.5):
         pidx_dict[name].append(p-layer_start[name])
     for name, p_idx in pidx_dict.items():
         print("pruning "+name+" prune channels:", p_idx)
+        if len(p_idx) >= layer.output_shape[-1]:
+            p_idx.pop()
         model = delete_channels(model, model.get_layer(name=name), p_idx)
     return model
 
