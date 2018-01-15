@@ -164,9 +164,11 @@ def random_conv_global(model, psize=0.9):
     for l in range(len(model.layers)):
         layer = model.layers[l]
         layer_class = layer.__class__.__name__
-        if not layer_class == 'Conv2D':
+        if not (layer_class == 'Conv2D' or layer_class == 'Dense'):
             continue
         elif layer.name == 'conv0':
+            continue
+        elif layer.name == 'dense1':
             continue
         layer_start[layer.name] = node_num
         pidx_dict[layer.name] = []
@@ -190,6 +192,10 @@ def random_conv_global(model, psize=0.9):
 
 def mean_weight_mask(model, name="dense0", th=0.05):
     layer = model.get_layer(name=name)
+    layer_idx = get_layer_index(model, name=name)
+    if layer_idx == 0:
+        print("Not on the input layer")
+        return
     layer_class = layer.__class__.__name__
     if not (layer_class == 'Dense'):
         print(" Please assign a dense or conv layer")
@@ -205,11 +211,10 @@ def mean_weight_mask(model, name="dense0", th=0.05):
         it.iternext()
     zeros_n = np.count_nonzero(weight)
     print("After Pruning: nonzeros in weights:", zeros_n)
-
     weights[0] = weight
     layer.set_weights(weights)
     mask_layer = Masking(mask_value=0.0)
-    model = insert_layer(model, layer, mask_layer)
+    model = insert_layer(model, model.layers[layer_idx-1],mask_layer)
     return model
 
 def check_zeros(model, name="dense0"):
