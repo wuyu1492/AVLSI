@@ -272,7 +272,7 @@ def zero_weight_all(model, psize=0.5):
 def zero_weight(model,layer_name, psize=0.5):
     print("Estimate weight in DNN, layer[{}]".format(layer_name))
     layer = model.get_layer(name=layer_name)
-    n_node = model.get_layer(name=name).output_shape[-1]
+    n_node = model.get_layer(name=layer_name).output_shape[-1]
     psize = int(round(psize*n_node))
     print("layer type = ", layer.__class__.__name__)
     weights = layer.get_weights()
@@ -317,6 +317,7 @@ def zero_channels_all(model, psize=0.5):
         else:
             node_sums += w_sum.tolist()
     idx_sort = np.argsort(node_sums, axis=-1)
+    print("idx_sort:" ,idx_sort)
     psize = int(round(psize*node_num))
     pidx = idx_sort[:psize]
     for p in pidx:
