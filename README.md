@@ -36,5 +36,3 @@ The CNN model we used for pruning experiment is composed of 4 Conv2D layers and 
 
 The DNN model we used for experiment is composed of 7 Dense layers. After 10 epochs of pretraining, it can achieve 96% accuracy pm MNIST testset.
 
-## prune
-From the paper we surveyed,
