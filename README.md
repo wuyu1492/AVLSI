@@ -46,7 +46,8 @@ python mnist_model.py fine-tune
 ### Utilities
 In file `Utils_mnist.py`, there are our pruning functions
 ```
-mean_activation_rank(model, input_img, name="conv3", psize=0.5) #use mean of layer output as sign of activation
+mean_activation_rank(model, input_img, name="conv3", psize=0.5) 
+#use mean of layer output as sign of activation
 
 grad_layerwise_rank(model, input_img, psize=1) #use gradient for layer-wise ranking 
 
