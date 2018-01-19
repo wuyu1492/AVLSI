@@ -1,7 +1,6 @@
 from keras.datasets import mnist
 import numpy as np
 from keras.utils import to_categorical
-from keras.utils.vis_utils import plot_model
 from keras.models import load_model, Model
 from keras.layers import Dense, Dropout, Activation, Flatten, Input
 from keras.layers import Conv2D, MaxPooling2D, Masking
@@ -9,6 +8,11 @@ from utils_mnist import *
 from keras import backend as K
 from keras.engine.topology import Layer
 import sys
+
+
+#def weight_prune(model, layer_name, psize):
+#    layer = model.layers
+
 
 
 def get_model():
@@ -37,7 +41,6 @@ def get_model():
     softmax = Activation("softmax")(dense1)
 
     model = Model(inputs=inputs, outputs=softmax)
-    plot_model(model, to_file='model_plot.png', show_shapes=True, show_layer_names=True)
     return model
 
 def train(mode="pretrain"):
@@ -51,15 +54,22 @@ def train(mode="pretrain"):
 
     print("Datashape: ", x_train.shape, y_train.shape)
     
+#    model = get_model()
+#    model.compile(loss="categorical_crossentropy",
+#            optimizer='rmsprop',
+#            metrics=['accuracy'])
+#    model.summary()
+#    print(model.layers[14].get_config()['name'])
 
     #train model
     batch = 512
     epo = 10
     
+
     p_size = 992
     if mode=='prune':
         model = load_model("model_mnist.h5")
-        model = grad_layerwise_rank(model, x_test)
+        model = zero_weight_all(model)
         model.compile(loss="categorical_crossentropy",
                 optimizer='rmsprop',
                 metrics=['accuracy'])
@@ -76,13 +86,12 @@ def train(mode="pretrain"):
                 batch_size=batch,
                 epochs=epo,
                 validation_data=(x_test, y_test))
-        model.save("model_mnist_"+str(p_size)+".h5")
+        model.save("model_mnist_finetune.h5")
     else:
         model = get_model()
         model.compile(loss="categorical_crossentropy",
                 optimizer='rmsprop',
                 metrics=['accuracy'])
-        print("model total loss:", model.total_loss)
         model.summary()
         epo = 10
         history = model.fit(x_train,
